@@ -3,8 +3,12 @@ package com.example.googlemapsdemo
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
+import android.view.View
+import android.widget.Toast
 
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -49,14 +53,138 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
 
-
         initMapSettings()
         addMarkers()
+        addOnMapClickListener()
+        addOnMarkerClickListener()
+        addOnInfoWindowClickListener()
+        addOnMarkerDragListener()
+
+        addShapes()
+        setInfoWindowAdapter()
+        miscellaneous()
 
         // Add a marker in Sydney and move the camera
         val sydney = LatLng(-34.0, 151.0)
         mMap.addMarker(MarkerOptions().position(sydney).title("Marker in Sydney"))
         mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney))
+    }
+
+    private fun miscellaneous(){
+        mMap.setOnPoiClickListener {
+            Log.e("tag","${it.latLng} -- ${it.name}")
+            mt("Poi ${it.name}")
+        }
+    }
+
+    private fun setInfoWindowAdapter(){
+        mMap.setInfoWindowAdapter(MyInfoWindowAdapter())
+    }
+
+    private inner class MyInfoWindowAdapter : GoogleMap.InfoWindowAdapter{
+        override fun getInfoWindow(marker: Marker): View? {
+            return null
+        }
+
+        override fun getInfoContents(marker: Marker): View? {
+           var view = layoutInflater.inflate(R.layout.my_infowindow,null)
+            var binding = com.example.googlemapsdemo.databinding.MyInfowindowBinding.bind(view)
+            binding.txtTitle.setText(marker.title)
+            binding.imgInfo.setImageResource(R.mipmap.ic_launcher)
+
+            return view
+        }
+    }
+
+    private fun addShapes(){
+        circle = mMap.addCircle(
+            CircleOptions()
+                .center(puneMarker.position)
+                .radius(1000.0)
+                .strokeColor(Color.MAGENTA)
+                .fillColor(Color.argb(90,255,0,0))
+        )
+
+        polygon = mMap.addPolygon(
+            PolygonOptions()
+                .add(LatLng(13.0827,80.2707))
+                .add(LatLng(12.2958,76.6394))
+                .add(LatLng(10.8505,76.2711))
+                .add(LatLng(7.8731,80.7718))
+                .fillColor(Color.argb(90,0,0,255))
+        )
+    }
+
+    private fun addOnMarkerDragListener(){
+        mMap.setOnMarkerDragListener(
+            object : GoogleMap.OnMarkerDragListener{
+                override fun onMarkerDragStart(marker: Marker) {
+                    mt("Drag Started ${marker.position.latitude} -- ${marker.position.longitude}")
+                }
+
+                override fun onMarkerDrag(marker: Marker) {
+                    Log.e("tag","Drag ${marker.title} -- ${marker.position.latitude},${marker.position.longitude}")
+                }
+
+                override fun onMarkerDragEnd(marker: Marker) {
+                    mt("Drag End ${marker.position.latitude} -- ${marker.position.longitude}")
+                }
+            }
+        )
+    }
+
+    private fun addOnInfoWindowClickListener(){
+        mMap.setOnInfoWindowClickListener {
+            mt("InfoWindow Click: ${it.title}")
+        }
+    }
+
+    private fun addOnMarkerClickListener(){
+        mMap.setOnMarkerClickListener(
+            object : GoogleMap.OnMarkerClickListener{
+                override fun onMarkerClick(marker: Marker): Boolean {
+                   mt("Marker Clicked : ${marker.title}")
+                    return false
+                }
+            }
+        )
+    }
+
+    private fun addOnMapClickListener(){
+        mMap.setOnMapClickListener {
+            markers.add(
+                mMap.addMarker(
+                    MarkerOptions()
+                        .position(it)
+                        .title("Marker $count")
+                )!!
+            )
+            count++
+
+         var cameraPosition = CameraPosition.Builder()
+                .tilt(40F)
+                .zoom(50F)
+                .bearing(20F)
+                .target(puneMarker.position)
+                .build()
+
+            var cameraUpdate = CameraUpdateFactory.newCameraPosition(cameraPosition)
+            mMap.animateCamera(cameraUpdate,5000,MyAnimationCancellableCallback())
+        }
+    }
+
+    inner class MyAnimationCancellableCallback : GoogleMap.CancelableCallback {
+        override fun onCancel() {
+           mt("Animation Cancelled")
+        }
+
+        override fun onFinish() {
+            mt("Animation Finished")
+        }
+    }
+
+    private fun mt(text:String){
+        Toast.makeText(this,text, Toast.LENGTH_LONG).show()
     }
 
     private fun addMarkers(){
